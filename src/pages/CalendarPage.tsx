@@ -26,6 +26,9 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: 'birthday', label: '생일' },
 ];
 
+const yearOptions = Array.from({ length: 21 }, (_, index) => new Date().getFullYear() - 10 + index);
+const monthOptions = Array.from({ length: 12 }, (_, index) => index + 1);
+
 export default function CalendarPage() {
   const { currentUser } = useContext(AuthContext);
   const { setHeaderMetrics } = useOutletContext<AppLayoutOutletContext>();
@@ -39,6 +42,9 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<EnrichedEvent | null>(null);
   const [editingEvent, setEditingEvent] = useState<EnrichedEvent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EnrichedEvent | null>(null);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [draftYear, setDraftYear] = useState(month.getFullYear());
+  const [draftMonth, setDraftMonth] = useState(month.getMonth() + 1);
 
   const load = async () => {
     const [eventData, userData, groupData, pollData] = await Promise.all([
@@ -56,6 +62,11 @@ export default function CalendarPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    setDraftYear(month.getFullYear());
+    setDraftMonth(month.getMonth() + 1);
+  }, [month]);
 
   const birthdayEvents = useMemo<EnrichedEvent[]>(() => users.map((user) => ({
     id: `birthday-${user.id}`,
@@ -118,25 +129,34 @@ export default function CalendarPage() {
     await load();
   };
 
+  const applyMonth = () => {
+    setMonth(new Date(draftYear, draftMonth - 1, 1));
+    setIsMonthPickerOpen(false);
+  };
+
   return (
-    <div className="space-y-4">
-      <section className="rounded-2xl bg-white p-3 shadow-soft sm:p-4">
-        <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div className="space-y-3">
+      <section className="rounded-2xl bg-white p-2.5 shadow-soft sm:p-3">
+        <div className="mb-2.5 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center justify-between gap-2 sm:justify-start">
-            <Button variant="ghost" className="h-10 w-10 px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
-              <ChevronLeft size={18} />
+            <Button variant="ghost" className="h-12 w-12 min-h-12 rounded-2xl px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+              <ChevronLeft size={24} />
             </Button>
-            <h1 className="min-w-36 text-center text-xl font-extrabold text-slate-900">
-              {month.getFullYear()}년 {month.getMonth() + 1}월
-            </h1>
-            <Button variant="ghost" className="h-10 w-10 px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
-              <ChevronRight size={18} />
+            <button
+              type="button"
+              className="min-h-11 min-w-40 rounded-2xl px-4 text-center text-xl font-extrabold text-slate-900 transition hover:bg-slate-100"
+              onClick={() => setIsMonthPickerOpen(true)}
+            >
+              {month.getFullYear()}년 {String(month.getMonth() + 1).padStart(2, '0')}월
+            </button>
+            <Button variant="ghost" className="h-12 w-12 min-h-12 rounded-2xl px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+              <ChevronRight size={24} />
             </Button>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
             <Button
-              icon={<Plus size={16} />}
-              className="shrink-0 !bg-emerald-600 !text-white hover:!bg-emerald-700"
+              icon={<Plus size={14} />}
+              className="h-8 min-h-8 shrink-0 rounded-lg px-3 py-1 text-xs !bg-emerald-600 !text-white hover:!bg-emerald-700"
               onClick={() => setSelectedDate(today)}
             >
               일정 추가
@@ -145,7 +165,7 @@ export default function CalendarPage() {
               <Button
                 key={item.key}
                 variant={filter === item.key ? 'primary' : 'secondary'}
-                className="shrink-0 px-3"
+                className="h-8 min-h-8 shrink-0 rounded-lg px-3 py-1 text-xs"
                 onClick={() => setFilter(item.key)}
               >
                 {item.label}
@@ -155,6 +175,29 @@ export default function CalendarPage() {
         </div>
         <CalendarMonth month={month} events={visibleEvents} onDateClick={setSelectedDate} onEventClick={setSelectedEvent} />
       </section>
+
+      <Modal title="년/월 선택" isOpen={isMonthPickerOpen} onClose={() => setIsMonthPickerOpen(false)}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-1 text-sm font-semibold text-slate-700">
+              연도
+              <select className="w-full rounded-xl border border-slate-200 px-3 py-2" value={draftYear} onChange={(event) => setDraftYear(Number(event.target.value))}>
+                {yearOptions.map((year) => <option key={year} value={year}>{year}년</option>)}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm font-semibold text-slate-700">
+              월
+              <select className="w-full rounded-xl border border-slate-200 px-3 py-2" value={draftMonth} onChange={(event) => setDraftMonth(Number(event.target.value))}>
+                {monthOptions.map((item) => <option key={item} value={item}>{item}월</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setIsMonthPickerOpen(false)}>취소</Button>
+            <Button onClick={applyMonth}>이동</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal title={editingEvent ? '일정 수정' : '일정 추가'} isOpen={Boolean(selectedDate || editingEvent)} onClose={() => { setSelectedDate(undefined); setEditingEvent(null); }}>
         <EventForm groups={groups} selectedDate={selectedDate} event={editingEvent} onCancel={() => { setSelectedDate(undefined); setEditingEvent(null); }} onSave={saveEvent} />
