@@ -3,7 +3,6 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useContext, useState } from 'react';
 import Button from '../common/Button';
 import { AuthContext } from '../../App';
-import { isSupabaseConfigured } from '../../services/supabase';
 
 const navItems = [
   { to: '/calendar', label: '일정', icon: CalendarDays },
@@ -38,48 +37,30 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-family-bg pb-20 text-family-ink md:pb-0">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-        <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Button variant="ghost" className="hidden h-10 w-10 px-0 md:inline-flex" onClick={() => setCollapsed((value) => !value)}>
-              <Menu size={19} />
-            </Button>
-            <div className="min-w-0 shrink-0">
-              <p className="truncate text-base font-extrabold text-indigo-700">
-                {currentUser?.name ? `${currentUser.name}님` : 'Jang Family'}
-              </p>
-              <p className="hidden text-xs text-slate-500 sm:block">Jang Family</p>
-            </div>
-            <div className="hidden min-w-0 flex-1 items-center gap-2 lg:flex">
-              {headerMetrics.map((metric) => (
-                <span
-                  key={metric.label}
-                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1 ${metricTones[metric.tone]}`}
-                >
-                  <span>{metric.label}</span>
-                  <span className="text-sm">{metric.value}</span>
-                </span>
-              ))}
-            </div>
+        <div className="flex h-16 items-center gap-2 overflow-hidden px-3 md:gap-3 md:px-6">
+          <Button variant="ghost" className="hidden h-10 w-10 shrink-0 px-0 md:inline-flex" onClick={() => setCollapsed((value) => !value)}>
+            <Menu size={19} />
+          </Button>
+
+          <div className="min-w-0 shrink-0">
+            <p className="max-w-24 truncate text-sm font-extrabold text-indigo-700 sm:max-w-40 sm:text-base">
+              {currentUser?.name ? `${currentUser.name}님` : 'Jang Family'}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm font-medium text-slate-600 sm:inline">
-              {isSupabaseConfigured ? 'Supabase 연결됨' : '샘플 모드'}
-            </span>
-            <Button variant="secondary" onClick={logout}>로그아웃</Button>
+
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-2">
+            {headerMetrics.map((metric) => (
+              <span
+                key={metric.label}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 sm:px-3 ${metricTones[metric.tone]}`}
+              >
+                <span>{metric.label}</span>
+                <span className="text-sm">{metric.value}</span>
+              </span>
+            ))}
           </div>
-          {headerMetrics.length > 0 && (
-            <div className="flex w-full gap-2 overflow-x-auto pb-1 lg:hidden">
-              {headerMetrics.map((metric) => (
-                <span
-                  key={metric.label}
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1 ${metricTones[metric.tone]}`}
-                >
-                  <span>{metric.label}</span>
-                  <span className="text-sm">{metric.value}</span>
-                </span>
-              ))}
-            </div>
-          )}
+
+          <Button variant="secondary" className="h-9 min-h-9 shrink-0 px-3" onClick={logout}>로그아웃</Button>
         </div>
       </header>
 

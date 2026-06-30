@@ -134,6 +134,13 @@ export default function CalendarPage() {
             </Button>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <Button
+              icon={<Plus size={16} />}
+              className="shrink-0 !bg-emerald-600 !text-white hover:!bg-emerald-700"
+              onClick={() => setSelectedDate(today)}
+            >
+              일정 추가
+            </Button>
             {filters.map((item) => (
               <Button
                 key={item.key}
@@ -144,7 +151,6 @@ export default function CalendarPage() {
                 {item.label}
               </Button>
             ))}
-            <Button icon={<Plus size={16} />} className="shrink-0" onClick={() => setSelectedDate(today)}>일정 추가</Button>
           </div>
         </div>
         <CalendarMonth month={month} events={visibleEvents} onDateClick={setSelectedDate} onEventClick={setSelectedEvent} />

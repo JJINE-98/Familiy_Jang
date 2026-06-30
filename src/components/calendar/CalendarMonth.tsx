@@ -1,5 +1,5 @@
 import type { EnrichedEvent } from '../../types/database';
-import { eventOccursOn, getMonthDays, toDateKey, todayKey } from '../../utils/date';
+import { eventOccursOn, getMonthDays, normalizeRepeatDate, toDateKey, todayKey } from '../../utils/date';
 
 interface CalendarMonthProps {
   month: Date;
@@ -14,6 +14,17 @@ const eventLabel = (event: EnrichedEvent) => {
   if (event.event_type === 'birthday') return `생일 ${event.title}`;
   if (event.is_important) return `중요 ${event.title}`;
   return event.title;
+};
+
+const isPeriodEvent = (event: EnrichedEvent) => Boolean(event.end_date && event.end_date !== event.start_date);
+
+const periodSegment = (event: EnrichedEvent, day: Date, dateKey: string) => {
+  const start = normalizeRepeatDate(event.start_date, event.repeat_type, day);
+  const end = event.end_date ? normalizeRepeatDate(event.end_date, event.repeat_type, day) : start;
+  return {
+    starts: dateKey === start || day.getDay() === 0,
+    ends: dateKey === end || day.getDay() === 6,
+  };
 };
 
 export default function CalendarMonth({ month, events, onDateClick, onEventClick }: CalendarMonthProps) {
@@ -34,14 +45,17 @@ export default function CalendarMonth({ month, events, onDateClick, onEventClick
         {days.map((day) => {
           const dateKey = toDateKey(day);
           const dayEvents = events.filter((event) => eventOccursOn(event, dateKey));
-          const visibleDayEvents = dayEvents.slice(0, 3);
+          const periodEvents = dayEvents.filter(isPeriodEvent).slice(0, 2);
+          const pointEvents = dayEvents.filter((event) => !isPeriodEvent(event));
+          const visiblePointEvents = pointEvents.slice(0, 3);
+          const hiddenCount = Math.max(0, dayEvents.length - periodEvents.length - visiblePointEvents.length);
           const isMuted = day.getMonth() !== currentMonth;
           const isToday = dateKey === today;
 
           return (
             <div
               key={dateKey}
-              className={`min-h-[86px] border-b border-r border-slate-100 p-1.5 transition hover:bg-indigo-50/70 sm:min-h-32 sm:p-2.5 ${
+              className={`relative min-h-[92px] border-b border-r border-slate-100 p-1.5 pb-5 transition hover:bg-indigo-50/70 sm:min-h-32 sm:p-2.5 sm:pb-7 ${
                 isMuted ? 'bg-slate-50/70 text-slate-400' : 'bg-white text-slate-800'
               }`}
             >
@@ -64,8 +78,8 @@ export default function CalendarMonth({ month, events, onDateClick, onEventClick
                 )}
               </button>
 
-              <div className="flex gap-1 sm:hidden">
-                {visibleDayEvents.map((event) => (
+              <div className="flex flex-wrap gap-1 sm:hidden">
+                {visiblePointEvents.map((event) => (
                   <button
                     type="button"
                     key={event.id}
@@ -78,7 +92,7 @@ export default function CalendarMonth({ month, events, onDateClick, onEventClick
               </div>
 
               <div className="hidden space-y-1 sm:block">
-                {visibleDayEvents.map((event) => (
+                {visiblePointEvents.map((event) => (
                   <button
                     type="button"
                     key={event.id}
@@ -92,12 +106,31 @@ export default function CalendarMonth({ month, events, onDateClick, onEventClick
                     <span className="truncate">{eventLabel(event)}</span>
                   </button>
                 ))}
-                {dayEvents.length > visibleDayEvents.length && (
+                {hiddenCount > 0 && (
                   <span className="block px-1.5 text-[11px] font-bold text-slate-400">
-                    +{dayEvents.length - visibleDayEvents.length}개 더
+                    +{hiddenCount}개 더
                   </span>
                 )}
               </div>
+
+              {periodEvents.map((event, index) => {
+                const segment = periodSegment(event, day, dateKey);
+                return (
+                  <button
+                    type="button"
+                    key={`${event.id}-${dateKey}`}
+                    aria-label={eventLabel(event)}
+                    className={`absolute h-1.5 transition hover:h-2 ${
+                      segment.starts ? 'left-2 rounded-l-full' : 'left-0'
+                    } ${segment.ends ? 'right-2 rounded-r-full' : 'right-0'}`}
+                    style={{
+                      bottom: `${8 + index * 8}px`,
+                      background: event.group?.color ?? '#818CF8',
+                    }}
+                    onClick={() => onEventClick(event)}
+                  />
+                );
+              })}
             </div>
           );
         })}
