@@ -1,5 +1,5 @@
 import { CalendarDays, Menu, UserRound, UsersRound, Vote } from 'lucide-react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useContext, useState } from 'react';
 import Button from '../common/Button';
 import { AuthContext } from '../../App';
@@ -12,32 +12,74 @@ const navItems = [
   { to: '/profile', label: '내 정보', icon: UserRound },
 ];
 
+export interface HeaderMetric {
+  label: string;
+  value: number;
+  tone: 'amber' | 'indigo' | 'emerald' | 'rose';
+}
+
+export interface AppLayoutOutletContext {
+  setHeaderMetrics: (metrics: HeaderMetric[]) => void;
+}
+
+const metricTones: Record<HeaderMetric['tone'], string> = {
+  amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+  indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+  rose: 'bg-rose-50 text-rose-700 ring-rose-100',
+};
+
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [headerMetrics, setHeaderMetrics] = useState<HeaderMetric[]>([]);
   const { currentUser, logout } = useContext(AuthContext);
   const visibleItems = navItems.filter((item) => !item.adminOnly || currentUser?.is_admin);
 
   return (
     <div className="min-h-screen bg-family-bg pb-20 text-family-ink md:pb-0">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-        <div className="flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-3">
+        <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Button variant="ghost" className="hidden h-10 w-10 px-0 md:inline-flex" onClick={() => setCollapsed((value) => !value)}>
               <Menu size={19} />
             </Button>
-            <div>
-              <p className="text-base font-extrabold text-indigo-700">Jang Family</p>
-              <p className="hidden text-xs text-slate-500 sm:block">
-                {isSupabaseConfigured ? 'Supabase 연결됨' : '샘플 모드로 확인 중'}
+            <div className="min-w-0 shrink-0">
+              <p className="truncate text-base font-extrabold text-indigo-700">
+                {currentUser?.name ? `${currentUser.name}님` : 'Jang Family'}
               </p>
+              <p className="hidden text-xs text-slate-500 sm:block">Jang Family</p>
+            </div>
+            <div className="hidden min-w-0 flex-1 items-center gap-2 lg:flex">
+              {headerMetrics.map((metric) => (
+                <span
+                  key={metric.label}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1 ${metricTones[metric.tone]}`}
+                >
+                  <span>{metric.label}</span>
+                  <span className="text-sm">{metric.value}</span>
+                </span>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm font-medium text-slate-600 sm:inline">
-              {currentUser?.name}님으로 로그인 중
+              {isSupabaseConfigured ? 'Supabase 연결됨' : '샘플 모드'}
             </span>
             <Button variant="secondary" onClick={logout}>로그아웃</Button>
           </div>
+          {headerMetrics.length > 0 && (
+            <div className="flex w-full gap-2 overflow-x-auto pb-1 lg:hidden">
+              {headerMetrics.map((metric) => (
+                <span
+                  key={metric.label}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1 ${metricTones[metric.tone]}`}
+                >
+                  <span>{metric.label}</span>
+                  <span className="text-sm">{metric.value}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -62,7 +104,7 @@ export default function AppLayout() {
         </aside>
 
         <main className="min-w-0 flex-1">
-          <Outlet />
+          <Outlet context={{ setHeaderMetrics } satisfies AppLayoutOutletContext} />
         </main>
       </div>
 

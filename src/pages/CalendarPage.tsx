@@ -1,16 +1,17 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Button from '../components/common/Button';
 import ConfirmModal from '../components/common/ConfirmModal';
 import Modal from '../components/common/Modal';
 import CalendarMonth from '../components/calendar/CalendarMonth';
-import SummaryCards from '../components/calendar/SummaryCards';
 import EventDetailModal from '../components/events/EventDetailModal';
 import EventForm from '../components/events/EventForm';
 import { AuthContext } from '../App';
 import { eventService } from '../services/eventService';
 import { pollService } from '../services/pollService';
 import { userService } from '../services/userService';
+import type { AppLayoutOutletContext, HeaderMetric } from '../components/layout/AppLayout';
 import type { EnrichedEvent, EnrichedPoll, EventInput, FamilyUser, UserGroup } from '../types/database';
 import { eventOccursOn, getWeekRange, todayKey } from '../utils/date';
 
@@ -27,6 +28,7 @@ const filters: { key: FilterKey; label: string }[] = [
 
 export default function CalendarPage() {
   const { currentUser } = useContext(AuthContext);
+  const { setHeaderMetrics } = useOutletContext<AppLayoutOutletContext>();
   const [month, setMonth] = useState(new Date());
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
   const [users, setUsers] = useState<FamilyUser[]>([]);
@@ -84,10 +86,30 @@ export default function CalendarPage() {
 
   const week = getWeekRange();
   const today = todayKey();
+  const importantCount = visibleEvents.filter((event) => event.is_important).length;
+  const todayCount = visibleEvents.filter((event) => eventOccursOn(event, today)).length;
+  const weekCount = visibleEvents.filter((event) => {
+    for (let d = new Date(week.start); d <= new Date(week.end); d.setDate(d.getDate() + 1)) {
+      if (eventOccursOn(event, d.toISOString().slice(0, 10))) return true;
+    }
+    return false;
+  }).length;
   const urgentPolls = polls.filter((poll) => {
     const days = Math.ceil((new Date(poll.deadline_date).getTime() - new Date(today).getTime()) / 86_400_000);
     return days >= 0 && days <= 2 && !poll.votes.some((vote) => vote.user_id === currentUser?.id);
   });
+
+  const headerMetrics = useMemo<HeaderMetric[]>(() => [
+    { label: '중요', value: importantCount, tone: 'amber' },
+    { label: '오늘', value: todayCount, tone: 'indigo' },
+    { label: '이번주', value: weekCount, tone: 'emerald' },
+    { label: '투표임박', value: urgentPolls.length, tone: 'rose' },
+  ], [importantCount, todayCount, urgentPolls.length, weekCount]);
+
+  useEffect(() => {
+    setHeaderMetrics(headerMetrics);
+    return () => setHeaderMetrics([]);
+  }, [headerMetrics, setHeaderMetrics]);
 
   const saveEvent = async (input: EventInput, id?: string) => {
     await eventService.saveEvent(input, id);
@@ -97,31 +119,32 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="space-y-5">
-      <SummaryCards
-        importantCount={visibleEvents.filter((event) => event.is_important).length}
-        todayCount={visibleEvents.filter((event) => eventOccursOn(event, today)).length}
-        weekCount={visibleEvents.filter((event) => {
-          for (let d = new Date(week.start); d <= new Date(week.end); d.setDate(d.getDate() + 1)) {
-            if (eventOccursOn(event, d.toISOString().slice(0, 10))) return true;
-          }
-          return false;
-        }).length}
-        urgentPollCount={urgentPolls.length}
-      />
-
-      <section className="rounded-2xl bg-white p-4 shadow-soft">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" className="h-10 w-10 px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={18} /></Button>
-            <h1 className="min-w-40 text-center text-xl font-extrabold text-slate-900">{month.getFullYear()}년 {month.getMonth() + 1}월</h1>
-            <Button variant="ghost" className="h-10 w-10 px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={18} /></Button>
+    <div className="space-y-4">
+      <section className="rounded-2xl bg-white p-3 shadow-soft sm:p-4">
+        <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
+            <Button variant="ghost" className="h-10 w-10 px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+              <ChevronLeft size={18} />
+            </Button>
+            <h1 className="min-w-36 text-center text-xl font-extrabold text-slate-900">
+              {month.getFullYear()}년 {month.getMonth() + 1}월
+            </h1>
+            <Button variant="ghost" className="h-10 w-10 px-0" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+              <ChevronRight size={18} />
+            </Button>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {filters.map((item) => (
-              <Button key={item.key} variant={filter === item.key ? 'primary' : 'secondary'} className="px-3" onClick={() => setFilter(item.key)}>{item.label}</Button>
+              <Button
+                key={item.key}
+                variant={filter === item.key ? 'primary' : 'secondary'}
+                className="shrink-0 px-3"
+                onClick={() => setFilter(item.key)}
+              >
+                {item.label}
+              </Button>
             ))}
-            <Button icon={<Plus size={16} />} onClick={() => setSelectedDate(today)}>일정 추가</Button>
+            <Button icon={<Plus size={16} />} className="shrink-0" onClick={() => setSelectedDate(today)}>일정 추가</Button>
           </div>
         </div>
         <CalendarMonth month={month} events={visibleEvents} onDateClick={setSelectedDate} onEventClick={setSelectedEvent} />
